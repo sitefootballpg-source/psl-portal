@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PNGFA Premier Soccer League (PSL) - Live Portal</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            'png-red': '#D71921',
+            'png-gold': '#FFCC00',
+            'png-black': '#121212',
+            'png-green': '#059669',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbars */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    @keyframes pulse-live {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.08); }
+    }
+    .badge-live { animation: pulse-live 1.8s infinite ease-in-out; }
+  </style>
+</head>
+
+<body class="bg-zinc-950 text-zinc-100 font-sans min-h-screen flex flex-col antialiased selection:bg-png-gold selection:text-zinc-950">
+
+  <!-- HEADER & BRANDING BAR -->
+  <header class="sticky top-0 z-40 bg-zinc-900/95 backdrop-blur-md border-b border-zinc-800/80 shadow-2xl">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- PNGFA & PSL League Crest Branding -->
+      <div class="flex items-center space-x-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-png-red via-red-700 to-black p-0.5 shadow-lg flex items-center justify-center">
+          <div class="w-full h-full bg-zinc-950 rounded-[10px] flex items-center justify-center font-black text-png-gold text-lg">
+            PSL
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-black tracking-tight text-white uppercase">Premier Soccer League</h1>
+            <span class="bg-png-red/20 text-png-red border border-png-red/40 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">PNGFA</span>
+          </div>
+          <p class="text-xs text-zinc-400 font-medium">Official Fixtures, Results & Table • Papua New Guinea</p>
+        </div>
+      </div>
+
+      <!-- Action Controls: Config & Auto Refresh Status -->
+      <div class="flex items-center gap-3">
+        <div id="syncStatus" class="hidden sm:flex items-center gap-2 bg-zinc-950 text-xs px-3 py-1.5 rounded-xl border border-zinc-800 text-zinc-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span>Google Sheets Sync Active</span>
+        </div>
+
+        <button onclick="openConfigModal()" class="bg-zinc-800 hover:bg-png-gold hover:text-zinc-950 text-zinc-200 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-2 border border-zinc-700">
+          <i class="fa-solid fa-sheet-plastic text-sm"></i> Connect Google Sheet
+        </button>
+
+        <button onclick="fetchSheetData()" title="Reload Data Now" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-2 rounded-xl transition border border-zinc-700">
+          <i class="fa-solid fa-rotate text-xs"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-zinc-950/90 border-t border-zinc-800 px-4">
+      <div class="max-w-7xl mx-auto flex space-x-2 overflow-x-auto no-scrollbar">
+        <button onclick="switchTab('fixtures')" id="tab-fixtures" class="tab-btn px-4 py-3 text-xs sm:text-sm font-extrabold border-b-2 border-png-gold text-png-gold flex items-center gap-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-calendar-days"></i> Upcoming Fixtures
+        </button>
+        <button onclick="switchTab('results')" id="tab-results" class="tab-btn px-4 py-3 text-xs sm:text-sm font-extrabold border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 flex items-center gap-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-square-poll-vertical"></i> Match Results
+        </button>
+        <button onclick="switchTab('standings')" id="tab-standings" class="tab-btn px-4 py-3 text-xs sm:text-sm font-extrabold border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 flex items-center gap-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-list-ol"></i> League Table
+        </button>
+        <button onclick="switchTab('instructions')" id="tab-instructions" class="tab-btn px-4 py-3 text-xs sm:text-sm font-extrabold border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 flex items-center gap-2 whitespace-nowrap transition">
+          <i class="fa-solid fa-circle-question"></i> Setup Instructions
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto w-full px-4 py-6 flex-grow">
+
+    <!-- SHEET DATA ALERT BANNER (Shows when demo/fallback mode is active) -->
+    <div id="dataNoticeBanner" class="mb-6 bg-gradient-to-r from-amber-950/80 via-zinc-900 to-zinc-900 border border-amber-500/40 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-png-gold flex items-center justify-center text-lg flex-shrink-0">
+          <i class="fa-solid fa-database"></i>
+        </div>
+        <div>
+          <h4 class="text-xs sm:text-sm font-bold text-amber-200">Currently displaying Sample Data</h4>
+          <p class="text-xs text-zinc-400">Connect your published Google Sheet CSV URL to control match scores, dates, and standings live from your browser!</p>
+        </div>
+      </div>
+      <button onclick="openConfigModal()" class="bg-png-gold hover:bg-yellow-400 text-zinc-950 font-extrabold text-xs px-4 py-2 rounded-xl transition whitespace-nowrap">
+        Link Your Google Sheet
+      </button>
+    </div>
+
+    <!-- TAB 1: UPCOMING FIXTURES -->
+    <section id="content-fixtures" class="tab-content space-y-6">
+      
+      <!-- Filters Toolbar -->
+      <div class="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 shadow-lg space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs"></i>
+            <input type="text" id="fixtureSearch" oninput="renderFixturesTab()" placeholder="Search teams, venue..." class="w-full bg-zinc-950 text-xs text-zinc-100 placeholder-zinc-500 border border-zinc-800 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:border-png-gold">
+          </div>
+          <div>
+            <select id="fixtureRoundFilter" onchange="renderFixturesTab()" class="w-full bg-zinc-950 text-xs text-zinc-200 border border-zinc-800 rounded-xl px-3 py-2.5 focus:outline-none focus:border-png-gold">
+              <option value="ALL">All Matchdays / Rounds</option>
+            </select>
+          </div>
+          <div class="flex items-center justify-end text-xs text-zinc-400">
+            Upcoming Matches: <strong id="upcomingCount" class="text-png-gold ml-1">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fixtures Grid Cards -->
+      <div id="fixturesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- JS Populated -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="noFixturesState" class="hidden text-center py-16 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
+        <i class="fa-solid fa-calendar-xmark text-4xl text-zinc-700 mb-3"></i>
+        <h3 class="text-sm font-bold text-zinc-300">No Upcoming Match Fixtures Found</h3>
+        <p class="text-xs text-zinc-500 mt-1">Check back later or adjust filter terms.</p>
+      </div>
+    </section>
+
+    <!-- TAB 2: MATCH RESULTS -->
+    <section id="content-results" class="tab-content hidden space-y-6">
+      
+      <!-- Results Toolbar -->
+      <div class="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 shadow-lg space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs"></i>
+            <input type="text" id="resultsSearch" oninput="renderResultsTab()" placeholder="Search goalscorer, club, venue..." class="w-full bg-zinc-950 text-xs text-zinc-100 placeholder-zinc-500 border border-zinc-800 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:border-png-gold">
+          </div>
+          <div>
+            <select id="resultsRoundFilter" onchange="renderResultsTab()" class="w-full bg-zinc-950 text-xs text-zinc-200 border border-zinc-800 rounded-xl px-3 py-2.5 focus:outline-none focus:border-png-gold">
+              <option value="ALL">All Matchdays / Rounds</option>
+            </select>
+          </div>
+          <div class="flex items-center justify-end text-xs text-zinc-400">
+            Completed Matches: <strong id="completedCount" class="text-png-gold ml-1">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Grid -->
+      <div id="resultsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- JS Populated -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="noResultsState" class="hidden text-center py-16 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
+        <i class="fa-solid fa-clipboard-check text-4xl text-zinc-700 mb-3"></i>
+        <h3 class="text-sm font-bold text-zinc-300">No Match Results Found</h3>
+        <p class="text-xs text-zinc-500 mt-1">Make sure matches in your Google Sheet have status marked as FINISHED.</p>
+      </div>
+    </section>
+
+    <!-- TAB 3: LEAGUE STANDINGS TABLE -->
+    <section id="content-standings" class="tab-content hidden space-y-6">
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
+        <div class="p-4 bg-zinc-950 border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="font-extrabold text-sm text-white flex items-center gap-2">
+              <i class="fa-solid fa-trophy text-png-gold"></i> Live PSL League Table
+            </h3>
+            <p class="text-xs text-zinc-400">Automatically calculated in real-time from all finished match results.</p>
+          </div>
+          <div class="flex items-center gap-3 text-[11px] text-zinc-400">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500"></span> Qualification</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-png-red"></span> Relegation Zone</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-zinc-950/80 text-zinc-400 uppercase font-semibold border-b border-zinc-800 tracking-wider">
+              <tr>
+                <th class="p-3.5 text-center">Pos</th>
+                <th class="p-3.5">Club Name</th>
+                <th class="p-3.5 text-center">GP</th>
+                <th class="p-3.5 text-center">W</th>
+                <th class="p-3.5 text-center">D</th>
+                <th class="p-3.5 text-center">L</th>
+                <th class="p-3.5 text-center hidden sm:table-cell">GF</th>
+                <th class="p-3.5 text-center hidden sm:table-cell">GA</th>
+                <th class="p-3.5 text-center">GD</th>
+                <th class="p-3.5 text-center font-black text-png-gold">PTS</th>
+                <th class="p-3.5 text-center hidden md:table-cell">Recent Form</th>
+              </tr>
+            </thead>
+            <tbody id="standingsTableBody" class="divide-y divide-zinc-800/60 font-medium text-zinc-200">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: SETUP INSTRUCTIONS & SHEET TEMPLATE -->
+    <section id="content-instructions" class="tab-content hidden space-y-6">
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-4xl mx-auto">
+        
+        <div class="border-b border-zinc-800 pb-4">
+          <h2 class="text-base font-extrabold text-white flex items-center gap-2">
+            <i class="fa-solid fa-gears text-png-gold"></i> Google Sheets Automated CMS Setup Guide
+          </h2>
+          <p class="text-xs text-zinc-400 mt-1">Follow these steps to connect your own free Google Sheet as the admin database.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
+            <span class="w-6 h-6 rounded-full bg-png-gold text-zinc-950 font-black flex items-center justify-center text-xs">1</span>
+            <h4 class="font-extrabold text-white">Create Google Sheet</h4>
+            <p class="text-zinc-400">Create a new sheet and make sure your first row (header) contains these exact column names:</p>
+            <code class="block bg-zinc-900 p-2 rounded text-[10px] text-png-gold overflow-x-auto">
+              ID, Round, HomeTeam, AwayTeam, HomeScore, AwayScore, Status, Date, Time, Venue, HomeScorers, AwayScorers, POTM, Summary
+            </code>
+          </div>
+
+          <div class="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
+            <span class="w-6 h-6 rounded-full bg-png-gold text-zinc-950 font-black flex items-center justify-center text-xs">2</span>
+            <h4 class="font-extrabold text-white">Publish to Web (CSV)</h4>
+            <p class="text-zinc-400">In Google Sheets, go to <strong>File > Share > Publish to web</strong>.</p>
+            <p class="text-zinc-400">Select <strong>Web Page</strong> -> change to <strong>Comma-separated values (.csv)</strong> and click Publish.</p>
+          </div>
+
+          <div class="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-2">
+            <span class="w-6 h-6 rounded-full bg-png-gold text-zinc-950 font-black flex items-center justify-center text-xs">3</span>
+            <h4 class="font-extrabold text-white">Paste URL in Website</h4>
+            <p class="text-zinc-400">Copy the link provided by Google Sheets, click "Connect Google Sheet" at the top right of this page, and paste your URL.</p>
+          </div>
+        </div>
+
+        <!-- Sample CSV Copy Box -->
+        <div class="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-zinc-200">Sample Row Data (Copy & Paste directly into your Sheet)</h4>
+            <button onclick="copySampleCSV()" class="text-xs text-png-gold hover:underline flex items-center gap-1">
+              <i class="fa-solid fa-copy"></i> Copy Sample Rows
+            </button>
+          </div>
+          <textarea id="sampleCsvArea" readonly class="w-full bg-zinc-900 text-xs font-mono text-zinc-300 p-3 rounded-lg border border-zinc-800 h-32 focus:outline-none">ID,Round,HomeTeam,AwayTeam,HomeScore,AwayScore,Status,Date,Time,Venue,HomeScorers,AwayScorers,POTM,Summary
+M101,1,Hekari United FC,Lae City FC,2,1,FINISHED,Sat 03 Oct,15:00 PGT,Sir John Guise Stadium,Ati Kepo (14'); Kolo Kolu (88'),Nigel Dabinyaba (62'),Ati Kepo,Electrifying opening clash won in the 88th min.
+M102,1,Gulf Komara FC,FC Morobe Wawens,3,0,FINISHED,Sat 03 Oct,13:00 PGT,PNG Football Stadium,Pala Paul (22'); Rene Samuel (54'); Ken Kepe (79'),,Pala Paul,Gulf Komara dominated wing play.
+M103,2,Lae City FC,Gulf Komara FC,0,0,UPCOMING,Sat 07 Nov,15:00 PGT,PNGFA Academy Lae,,,TBD,High stakes matchup in Morobe province.</textarea>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- GOOGLE SHEET CONFIG MODAL -->
+  <div id="configModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+          <i class="fa-solid fa-link text-png-gold"></i> Connect Google Sheet CSV
+        </h3>
+        <button onclick="closeConfigModal()" class="text-zinc-500 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <p class="text-xs text-zinc-400">Paste your published Google Sheet CSV link below to sync fixtures, results, and standings live.</p>
+
+      <div class="space-y-2">
+        <label class="text-xs font-bold text-zinc-300 block">Published CSV URL</label>
+        <input type="url" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv" class="w-full bg-zinc-950 text-xs text-zinc-100 border border-zinc-800 rounded-xl px-3 py-2.5 focus:outline-none focus:border-png-gold">
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+        <button onclick="closeConfigModal()" class="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white">Cancel</button>
+        <button onclick="saveSheetUrl()" class="px-4 py-2 text-xs font-bold bg-png-gold text-zinc-950 rounded-xl hover:bg-yellow-400 transition">Save & Sync Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC & AUTOMATION ENGINE -->
+  <script>
+    // --- DEMO / FALLBACK DATA STORE ---
+    const FALLBACK_MATCHES = [
+      { id: "M101", round: "1", homeTeam: "Hekari United FC", awayTeam: "Lae City FC", homeScore: 2, awayScore: 1, status: "FINISHED", date: "Sat, 03 Oct", time: "15:00 PGT", venue: "Sir John Guise Stadium", homeScorers: "Ati Kepo (14'); Kolo Kolu (88')", awayScorers: "Nigel Dabinyaba (62')", potm: "Ati Kepo (Hekari)", summary: "An electrifying opening clash featuring high tempo pressing." },
+      { id: "M102", round: "1", homeTeam: "Gulf Komara FC", awayTeam: "FC Morobe Wawens", homeScore: 3, awayScore: 0, status: "FINISHED", date: "Sat, 03 Oct", time: "13:00 PGT", venue: "PNG Football Stadium", homeScorers: "Pala Paul (22'); Rene Samuel (54'); Ken Kepe (79')", awayScorers: "", potm: "Pala Paul (Gulf)", summary: "Gulf Komara dominated wing play and converted set pieces efficiently." },
+      { id: "M103", round: "2", homeTeam: "Port Moresby Strikers", awayTeam: "Central Dabari FC", homeScore: 1, awayScore: 1, status: "FINISHED", date: "Sun, 11 Oct", time: "15:00 PGT", venue: "Sir John Guise Stadium", homeScorers: "Patrick Aisa (41')", awayScorers: "Tau Kila (73')", potm: "Tau Kila (Dabari)", summary: "A tough midfield battle resulting in shared points." },
+      { id: "M104", round: "2", homeTeam: "United Highlands FC", awayTeam: "Sepik FC", homeScore: 2, awayScore: 2, status: "FINISHED", date: "Sun, 18 Oct", time: "15:00 PGT", venue: "Kundu Park Stadium", homeScorers: "Kua Namba (10'); Peter Wandali (68')", awayScorers: "Wawag Silas (29'); John Kevi (51')", potm: "Peter Wandali", summary: "Four goal thriller played in front of a packed terrace in Hagen." },
+      { id: "M105", round: "3", homeTeam: "Lae City FC", awayTeam: "Gulf Komara FC", homeScore: 0, awayScore: 0, status: "UPCOMING", date: "Sat, 07 Nov", time: "15:00 PGT", venue: "PNGFA Academy Lae", homeScorers: "", awayScorers: "", potm: "TBD", summary: "Crucial round 3 matchup." },
+      { id: "M106", round: "3", homeTeam: "Hekari United FC", awayTeam: "Port Moresby Strikers", homeScore: 0, awayScore: 0, status: "UPCOMING", date: "Sun, 08 Nov", time: "15:30 PGT", venue: "Sir John Guise Stadium", homeScorers: "", awayScorers: "", potm: "TBD", summary: "Capital city derby encounter." }
+    ];
+
+    let matchesData = [];
+    let googleSheetUrl = localStorage.getItem('psl_sheet_csv_url') || '';
+
+    // --- INITIALIZATION ---
+    window.onload = function() {
+      if(googleSheetUrl) {
+        document.getElementById('sheetUrlInput').value = googleSheetUrl;
+        fetchSheetData();
+      } else {
+        matchesData = FALLBACK_MATCHES;
+        processDataAndRender();
+      }
+    };
+
+    // --- FETCH & PARSE GOOGLE SHEETS CSV ---
+    function fetchSheetData() {
+      if(!googleSheetUrl) {
+        matchesData = FALLBACK_MATCHES;
+        processDataAndRender();
+        return;
+      }
+
+      fetch(googleSheetUrl)
+        .then(response => response.text())
+        .then(csvText => {
+          const parsed = parseCSV(csvText);
+          if(parsed && parsed.length > 0) {
+            matchesData = parsed;
+            document.getElementById('dataNoticeBanner').classList.add('hidden');
+            document.getElementById('syncStatus').classList.remove('hidden');
+          } else {
+            matchesData = FALLBACK_MATCHES;
+          }
+          processDataAndRender();
+        })
+        .catch(err => {
+          console.error("Error fetching Google Sheet CSV:", err);
+          alert("Could not load Google Sheet CSV. Please verify your published URL.");
+          matchesData = FALLBACK_MATCHES;
+          processDataAndRender();
+        });
+    }
+
+    // Custom Lightweight CSV Parser
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      if(lines.length < 2) return [];
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const results = [];
+
+      for(let i = 1; i < lines.length; i++) {
+        // Regex handles quotes containing commas safely
+        const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
+        if(!row || row.length < 4) continue;
+
+        const cleanRow = row.map(cell => cell.replace(/^"|"$/g, '').trim());
+        
+        results.push({
+          id: cleanRow[0] || `M${i}`,
+          round: cleanRow[1] || '1',
+          homeTeam: cleanRow[2] || 'Home Team',
+          awayTeam: cleanRow[3] || 'Away Team',
+          homeScore: parseInt(cleanRow[4]) || 0,
+          awayScore: parseInt(cleanRow[5]) || 0,
+          status: (cleanRow[6] || 'UPCOMING').toUpperCase(),
+          date: cleanRow[7] || 'TBD',
+          time: cleanRow[8] || '15:00 PGT',
+          venue: cleanRow[9] || 'PNG Venue',
+          homeScorers: cleanRow[10] || '',
+          awayScorers: cleanRow[11] || '',
+          potm: cleanRow[12] || '',
+          summary: cleanRow[13] || ''
+        });
+      }
+      return results;
+    }
+
+    // --- MASTER RENDER PIPELINE ---
+    function processDataAndRender() {
+      populateRoundFilters();
+      renderFixturesTab();
+      renderResultsTab();
+      calculateAndRenderStandings();
+    }
+
+    // --- POPULATE ROUND DROPDOWNS ---
+    function populateRoundFilters() {
+      const rounds = [...new Set(matchesData.map(m => m.round))].sort((a,b) => a - b);
+      const fixSelect = document.getElementById('fixtureRoundFilter');
+      const resSelect = document.getElementById('resultsRoundFilter');
+
+      fixSelect.innerHTML = '<option value="ALL">All Matchdays / Rounds</option>';
+      resSelect.innerHTML = '<option value="ALL">All Matchdays / Rounds</option>';
+
+      rounds.forEach(r => {
+        fixSelect.add(new Option(`Round ${r}`, r));
+        resSelect.add(new Option(`Round ${r}`, r));
+      });
+    }
+
+    // --- RENDER FIXTURES TAB ---
+    function renderFixturesTab() {
+      const query = document.getElementById('fixtureSearch').value.toLowerCase();
+      const round = document.getElementById('fixtureRoundFilter').value;
+
+      const upcoming = matchesData.filter(m => m.status !== 'FINISHED' && m.status !== 'COMPLETED');
+      document.getElementById('upcomingCount').innerText = upcoming.length;
+
+      const filtered = upcoming.filter(m => {
+        const matchesQuery = !query || m.homeTeam.toLowerCase().includes(query) || m.awayTeam.toLowerCase().includes(query) || m.venue.toLowerCase().includes(query);
+        const matchesRound = round === 'ALL' || m.round.toString() === round;
+        return matchesQuery && matchesRound;
+      });
+
+      const container = document.getElementById('fixturesGrid');
+      const emptyState = document.getElementById('noFixturesState');
+
+      if(filtered.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      container.innerHTML = filtered.map(m => `
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl hover:border-zinc-700 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-[11px] text-zinc-400 mb-3 border-b border-zinc-800/80 pb-2">
+              <span class="font-bold text-png-gold uppercase tracking-wider">Round ${m.round}</span>
+              <span>${m.date}</span>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 my-2">
+              <div class="flex-1 text-center">
+                <div class="w-10 h-10 mx-auto rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center font-black text-white mb-1 shadow">
+                  ${m.homeTeam.substring(0, 3).toUpperCase()}
+                </div>
+                <h4 class="font-extrabold text-xs text-white line-clamp-1">${m.homeTeam}</h4>
+              </div>
+
+              <div class="text-center px-2">
+                <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Upcoming</span>
+                <div class="my-1.5">
+                  <span class="text-xs font-black text-zinc-200 bg-zinc-950 px-2.5 py-1 rounded-xl border border-zinc-800 block">${m.time}</span>
+                </div>
+              </div>
+
+              <div class="flex-1 text-center">
+                <div class="w-10 h-10 mx-auto rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center font-black text-white mb-1 shadow">
+                  ${m.awayTeam.substring(0, 3).toUpperCase()}
+                </div>
+                <h4 class="font-extrabold text-xs text-white line-clamp-1">${m.awayTeam}</h4>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-2 border-t border-zinc-800/60 text-[11px] text-zinc-400 flex items-center justify-between">
+            <span><i class="fa-solid fa-location-dot text-png-gold text-[10px]"></i> ${m.venue}</span>
+            <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(m.homeTeam + ' vs ' + m.awayTeam)}" target="_blank" class="text-png-gold hover:underline"><i class="fa-solid fa-calendar-plus"></i> Cal</a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // --- RENDER MATCH RESULTS TAB ---
+    function renderResultsTab() {
+      const query = document.getElementById('resultsSearch').value.toLowerCase();
+      const round = document.getElementById('resultsRoundFilter').value;
+
+      const completed = matchesData.filter(m => m.status === 'FINISHED' || m.status === 'COMPLETED');
+      document.getElementById('completedCount').innerText = completed.length;
+
+      const filtered = completed.filter(m => {
+        const matchesQuery = !query || m.homeTeam.toLowerCase().includes(query) || m.awayTeam.toLowerCase().includes(query) || m.homeScorers.toLowerCase().includes(query) || m.awayScorers.toLowerCase().includes(query);
+        const matchesRound = round === 'ALL' || m.round.toString() === round;
+        return matchesQuery && matchesRound;
+      });
+
+      const container = document.getElementById('resultsGrid');
+      const emptyState = document.getElementById('noResultsState');
+
+      if(filtered.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      container.innerHTML = filtered.map(m => `
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between text-xs text-zinc-400 border-b border-zinc-800/80 pb-2.5">
+            <span class="font-bold text-png-gold uppercase tracking-wider">Round ${m.round} Result</span>
+            <span>${m.date} • ${m.venue}</span>
+          </div>
+
+          <div class="flex items-center justify-between gap-3 bg-zinc-950 p-4 rounded-xl border border-zinc-800/80">
+            <div class="flex-1 text-center">
+              <h4 class="font-extrabold text-xs text-white">${m.homeTeam}</h4>
+            </div>
+
+            <div class="text-center px-3">
+              <span class="text-2xl font-black text-png-gold tracking-wider bg-zinc-900 px-3 py-1 rounded-xl border border-png-gold/30">
+                ${m.homeScore} - ${m.awayScore}
+              </span>
+              <span class="block text-[9px] text-zinc-500 font-bold uppercase mt-1">Full Time</span>
+            </div>
+
+            <div class="flex-1 text-center">
+              <h4 class="font-extrabold text-xs text-white">${m.awayTeam}</h4>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 text-[11px] text-zinc-300">
+            <div>
+              ${m.homeScorers ? `<div class="flex items-center gap-1.5"><i class="fa-solid fa-futbol text-[10px] text-png-gold"></i> <span>${m.homeScorers}</span></div>` : '<span class="text-zinc-600 italic">No goals</span>'}
+            </div>
+            <div class="text-right">
+              ${m.awayScorers ? `<div class="flex items-center justify-end gap-1.5"><span>${m.awayScorers}</span> <i class="fa-solid fa-futbol text-[10px] text-png-gold"></i></div>` : '<span class="text-zinc-600 italic">No goals</span>'}
+            </div>
+          </div>
+
+          ${m.summary ? `<p class="text-xs text-zinc-400 bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/50 italic">"${m.summary}"</p>` : ''}
+        </div>
+      `).join('');
+    }
+
+    // --- CALCULATE STANDINGS TABLE FROM RESULTS ---
+    function calculateAndRenderStandings() {
+      const tbody = document.getElementById('standingsTableBody');
+      if(!tbody) return;
+
+      const teams = {};
+
+      // Initialize unique teams list from all matches
+      matchesData.forEach(m => {
+        if(!teams[m.homeTeam]) teams[m.homeTeam] = { name: m.homeTeam, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, PTS: 0, form: [] };
+        if(!teams[m.awayTeam]) teams[m.awayTeam] = { name: m.awayTeam, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, PTS: 0, form: [] };
+      });
+
+      // Calculate stats from completed matches
+      matchesData.forEach(m => {
+        if(m.status === 'FINISHED' || m.status === 'COMPLETED') {
+          const h = teams[m.homeTeam];
+          const a = teams[m.awayTeam];
+          if(!h || !a) return;
+
+          h.P++; a.P++;
+          h.GF += m.homeScore; h.GA += m.awayScore;
+          a.GF += m.awayScore; a.GA += m.homeScore;
+
+          if(m.homeScore > m.awayScore) {
+            h.W++; h.PTS += 3; h.form.push('W');
+            a.L++; a.form.push('L');
+          } else if(m.homeScore < m.awayScore) {
+            a.W++; a.PTS += 3; a.form.push('W');
+            h.L++; h.form.push('L');
+          } else {
+            h.D++; h.PTS += 1; h.form.push('D');
+            a.D++; a.PTS += 1; a.form.push('D');
+          }
+        }
+      });
+
+      Object.values(teams).forEach(t => t.GD = t.GF - t.GA);
+
+      const sorted = Object.values(teams).sort((a,b) => {
+        if(b.PTS !== a.PTS) return b.PTS - a.PTS;
+        if(b.GD !== a.GD) return b.GD - a.GD;
+        return b.GF - a.GF;
+      });
+
+      tbody.innerHTML = sorted.map((s, idx) => {
+        const pos = idx + 1;
+        let posBadgeClass = "text-zinc-400";
+        if(pos <= 4) posBadgeClass = "bg-emerald-500/20 text-emerald-400 font-black";
+        if(pos >= sorted.length - 1) posBadgeClass = "bg-png-red/20 text-png-red font-black";
+
+        return `
+          <tr class="hover:bg-zinc-800/40 transition">
+            <td class="p-3.5 text-center">
+              <span class="inline-block w-6 h-6 rounded-md flex items-center justify-center text-xs ${posBadgeClass}">${pos}</span>
+            </td>
+            <td class="p-3.5 font-bold text-white">${s.name}</td>
+            <td class="p-3.5 text-center">${s.P}</td>
+            <td class="p-3.5 text-center text-emerald-400">${s.W}</td>
+            <td class="p-3.5 text-center text-zinc-400">${s.D}</td>
+            <td class="p-3.5 text-center text-png-red">${s.L}</td>
+            <td class="p-3.5 text-center hidden sm:table-cell text-zinc-400">${s.GF}</td>
+            <td class="p-3.5 text-center hidden sm:table-cell text-zinc-400">${s.GA}</td>
+            <td class="p-3.5 text-center font-bold ${s.GD > 0 ? 'text-emerald-400' : s.GD < 0 ? 'text-png-red' : 'text-zinc-400'}">${s.GD > 0 ? '+'+s.GD : s.GD}</td>
+            <td class="p-3.5 text-center font-black text-sm text-png-gold">${s.PTS}</td>
+            <td class="p-3.5 text-center hidden md:table-cell">
+              <div class="flex items-center justify-center gap-1">
+                ${s.form.slice(-5).map(res => {
+                  if(res === 'W') return `<span class="w-5 h-5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold flex items-center justify-center border border-emerald-500/40">W</span>`;
+                  if(res === 'L') return `<span class="w-5 h-5 rounded bg-png-red/20 text-png-red text-[10px] font-bold flex items-center justify-center border border-png-red/40">L</span>`;
+                  return `<span class="w-5 h-5 rounded bg-zinc-700 text-zinc-300 text-[10px] font-bold flex items-center justify-center">D</span>`;
+                }).join('') || '<span class="text-zinc-600 text-[10px]">-</span>'}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // --- TAB SWITCHER ---
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-png-gold', 'text-png-gold');
+        btn.classList.add('border-transparent', 'text-zinc-400');
+      });
+
+      document.getElementById(`content-${tabId}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-${tabId}`);
+      if(activeBtn) {
+        activeBtn.classList.remove('border-transparent', 'text-zinc-400');
+        activeBtn.classList.add('border-png-gold', 'text-png-gold');
+      }
+    }
+
+    // --- CONFIG MODAL & HELPERS ---
+    function openConfigModal() { document.getElementById('configModal').classList.remove('hidden'); }
+    function closeConfigModal() { document.getElementById('configModal').classList.add('hidden'); }
+
+    function saveSheetUrl() {
+      const url = document.getElementById('sheetUrlInput').value.trim();
+      if(!url.includes('output=csv')) {
+        alert('Please ensure you selected "Comma-separated values (.csv)" when publishing to web!');
+      }
+      googleSheetUrl = url;
+      localStorage.setItem('psl_sheet_csv_url', url);
+      closeConfigModal();
+      fetchSheetData();
+    }
+
+    function copySampleCSV() {
+      const text = document.getElementById('sampleCsvArea').value;
+      document.execCommand('copy');
+      alert('Sample CSV rows copied to clipboard!');
+    }
+  </script>
+</body>
+</html>
